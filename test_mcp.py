@@ -85,5 +85,6 @@ async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
 # This block is for running the server on your local machine
 # It is not used by Render's start command.
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("test_mcp:app", host="0.0.0.0", port=port, reload=True)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    mcp.run(transport="http", host="0.0.0.0", port=port)
