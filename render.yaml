@@ -2,9 +2,9 @@ services:
   - type: web
     name: mcp-server
     env: python
-    pythonVersion: "3.11" # Add this line
+    pythonVersion: "3.11"
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn test_mcp:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: BEARER_TOKEN
-        sync: false
+        sync: false # Remember to set this secret in the Render Dashboard
