@@ -2,7 +2,6 @@ import os
 import httpx
 from typing import Dict, Any
 from mcp.server.fastmcp import FastMCP, Context
-from mcp.server.fastmcp import FastMCP, Context # Corrected import
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
 import uvicorn
@@ -27,7 +26,6 @@ class FetchAppidRequest(BaseModel):
 # Corrected arguments: removed the unsupported 'version' parameter
 mcp = FastMCP(
     name="MoEngage Internal Works API",
-    version="1.0.0",
     instructions="This server provides secure access to MoEngage Internal Works API for fetching application IDs. Supports Bearer token authentication and follows MCP specification for seamless Intercom integration. Use this connector to retrieve application IDs from MoEngage's internal works system by providing database name and region parameters."
 )
 
