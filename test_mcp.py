@@ -1,7 +1,7 @@
 import os
 import httpx
 from typing import Dict, Any
-from mcp.server.fastmcp import FastMCP, Context # Corrected import
+from mcp.server.fastmcp import FastMCP, Context
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
 import uvicorn
@@ -23,7 +23,6 @@ class FetchAppidRequest(BaseModel):
     )
 
 # Initialize the FastMCP server
-# Corrected arguments: removed the unsupported 'version' parameter
 mcp = FastMCP(
     name="MoEngage Internal Works API",
     instructions="This server provides secure access to MoEngage Internal Works API for fetching application IDs. Supports Bearer token authentication and follows MCP specification for seamless Intercom integration. Use this connector to retrieve application IDs from MoEngage's internal works system by providing database name and region parameters."
@@ -74,11 +73,10 @@ async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
         return {"error": str(e)}
 
 # The entry point for the server, used by Render.
-# We'll use FastAPI's app instance and uvicorn.
 app = FastAPI()
 
-# Add the FastMCP app to the FastAPI app as a sub-application
-app.mount("/", mcp)
+# Include the MCP tool routes in the FastAPI application
+app.include_router(mcp)
 
 if __name__ == "__main__":
     # The port is set by Render.
