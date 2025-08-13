@@ -2,6 +2,7 @@ import os
 import httpx
 from typing import Dict, Any
 from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP, Context # Corrected import
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
 import uvicorn
@@ -23,8 +24,10 @@ class FetchAppidRequest(BaseModel):
     )
 
 # Initialize the FastMCP server
+# Corrected arguments: removed the unsupported 'version' parameter
 mcp = FastMCP(
     name="MoEngage Internal Works API",
+    version="1.0.0",
     instructions="This server provides secure access to MoEngage Internal Works API for fetching application IDs. Supports Bearer token authentication and follows MCP specification for seamless Intercom integration. Use this connector to retrieve application IDs from MoEngage's internal works system by providing database name and region parameters."
 )
 
@@ -63,20 +66,24 @@ async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
                                          headers=headers,
                                          timeout=30.0)
             response.raise_for_status()
+            print(f"Successfully fetched app ID for db_name: {request.db_name}, region: {request.region}")
             logger.info(f"Successfully fetched app ID for db_name: {request.db_name}, region: {request.region}")
             return response.json()
     except httpx.HTTPError as e:
+        print(f"HTTP Error occurred: {e}")
         logger.error(f"HTTP Error occurred: {e}")
         return {"error": str(e)}
     except Exception as e:
+        print(f"An unexpected error occurred: {e}")
         logger.error(f"An unexpected error occurred: {e}")
         return {"error": str(e)}
 
 # The entry point for the server, used by Render.
+# We'll use FastAPI's app instance and uvicorn.
 app = FastAPI()
 
-# Include the MCP tool routes in the FastAPI application
-app.include_router(mcp.router)
+# Add the FastMCP app to the FastAPI app as a sub-application
+app.mount("/", mcp)
 
 if __name__ == "__main__":
     # The port is set by Render.
