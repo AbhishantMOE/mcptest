@@ -3,6 +3,7 @@ import httpx
 from typing import Dict, Any
 from mcp.server.fastmcp import FastMCP, Context
 from pydantic import BaseModel, Field
+from fastapi import FastAPI
 import uvicorn
 import logging
 
@@ -21,7 +22,13 @@ class FetchAppidRequest(BaseModel):
         description="The region for the database (e.g., DC1)."
     )
 
-# The base URL for the external API
+# Initialize the FastMCP server
+mcp = FastMCP(
+    name="MoEngage Internal Works API",
+    instructions="This server provides secure access to MoEngage Internal Works API for fetching application IDs. Supports Bearer token authentication and follows MCP specification for seamless Intercom integration. Use this connector to retrieve application IDs from MoEngage's internal works system by providing database name and region parameters."
+)
+
+# The base URL for the external API.
 API_BASE_URL = "https://intercom-api-gateway.moengage.com/v2/iw"
 
 # Get the bearer token from an environment variable for security
@@ -29,15 +36,8 @@ BEARER_TOKEN = os.getenv("BEARER_TOKEN")
 if not BEARER_TOKEN:
     raise ValueError("BEARER_TOKEN environment variable not set.")
 
-# Initialize FastMCP AS the application itself.
-# The `uvicorn` command looks for a variable named `app`.
-app = FastMCP(
-    name="MoEngage Internal Works API",
-    instructions="This server provides secure access to MoEngage Internal Works API for fetching application IDs. Supports Bearer token authentication and follows MCP specification for seamless Intercom integration. Use this connector to retrieve application IDs from MoEngage's internal works system by providing database name and region parameters."
-)
 
-# Use the app instance to decorate the tool
-@app.tool()
+@mcp.tool()
 async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
     """
     Fetches the application ID for a given database name and region.
@@ -68,8 +68,13 @@ async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
         logger.error(f"An unexpected error occurred: {e}")
         return {"error": str(e)}
 
-# This block is for local development and is not used by Render's start command
+# The entry point for the server, used by Render.
+app = FastAPI()
+
+# Include the MCP tool routes in the FastAPI application
+app.include_router(mcp)
+
+# This block is for local development
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    # Note: Pass the app object directly for local runs
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run("test_mcp:app", host="0.0.0.0", port=port, reload=True)
