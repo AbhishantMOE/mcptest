@@ -76,7 +76,7 @@ async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
 app = FastAPI()
 
 # Include the MCP tool routes in the FastAPI application
-app.include_router(mcp)
+app.include_router(mcp.router)
 
 if __name__ == "__main__":
     # The port is set by Render.
