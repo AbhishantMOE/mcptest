@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mcp-server
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn test_mcp:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: BEARER_TOKEN
+        sync: false # Set this to true if you are comfortable syncing with your git repository
+        # value: "your_bearer_token_here" # Paste your actual token here when setting it up in Render's dashboard.
