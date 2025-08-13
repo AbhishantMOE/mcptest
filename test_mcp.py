@@ -3,7 +3,6 @@ import httpx
 from typing import Dict, Any
 from mcp.server.fastmcp import FastMCP, Context
 from pydantic import BaseModel, Field
-from fastapi import FastAPI
 import uvicorn
 import logging
 
@@ -11,7 +10,28 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Define the model for the API request body
+# --- CONFIGURATION ---
+
+# The variable that Render's start command `uvicorn test_mcp:app` will look for.
+# The FastMCP class is a type of FastAPI application, so we create it as `app`.
+app = FastMCP(
+    title="MoEngage Internal Works API",
+    description="This server provides secure access to MoEngage Internal Works API for fetching application IDs. Supports Bearer token authentication and follows MCP specification for seamless Intercom integration. Use this connector to retrieve application IDs from MoEngage's internal works system by providing database name and region parameters.",
+    version="1.0.0",
+)
+
+# The base URL for the external API you are calling
+API_BASE_URL = "https://intercom-api-gateway.moengage.com/v2/iw"
+
+# Get the bearer token from an environment variable for security
+BEARER_TOKEN = os.getenv("BEARER_TOKEN")
+if not BEARER_TOKEN:
+    # This will stop the app from starting if the token is missing
+    raise ValueError("FATAL ERROR: The BEARER_TOKEN environment variable is not set.")
+
+
+# --- DATA MODELS ---
+
 class FetchAppidRequest(BaseModel):
     db_name: str = Field(
         ...,
@@ -22,22 +42,11 @@ class FetchAppidRequest(BaseModel):
         description="The region for the database (e.g., DC1)."
     )
 
-# Initialize the FastMCP server
-mcp = FastMCP(
-    name="MoEngage Internal Works API",
-    instructions="This server provides secure access to MoEngage Internal Works API for fetching application IDs. Supports Bearer token authentication and follows MCP specification for seamless Intercom integration. Use this connector to retrieve application IDs from MoEngage's internal works system by providing database name and region parameters."
-)
 
-# The base URL for the external API.
-API_BASE_URL = "https://intercom-api-gateway.moengage.com/v2/iw"
+# --- API TOOL DEFINITION ---
 
-# Get the bearer token from an environment variable for security
-BEARER_TOKEN = os.getenv("BEARER_TOKEN")
-if not BEARER_TOKEN:
-    raise ValueError("BEARER_TOKEN environment variable not set.")
-
-
-@mcp.tool()
+# The @app.tool() decorator adds this function as an API endpoint to our application
+@app.tool()
 async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
     """
     Fetches the application ID for a given database name and region.
@@ -48,10 +57,8 @@ async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
                 "Authorization": f"Bearer {BEARER_TOKEN}",
                 "Content-Type": "application/json"
             }
-            payload = {
-                "db_name": request.db_name,
-                "region": request.region
-            }
+            payload = request.dict() # Use the model's dict() method
+            
             response = await client.post(
                 f"{API_BASE_URL}/fetch-appid",
                 json=payload,
@@ -59,22 +66,24 @@ async def fetch_appid(request: FetchAppidRequest) -> Dict[str, Any]:
                 timeout=30.0
             )
             response.raise_for_status()
-            logger.info(f"Successfully fetched app ID for db_name: {request.db_name}, region: {request.region}")
+            logger.info(f"Successfully fetched app ID for db_name: {request.db_name}")
             return response.json()
-    except httpx.HTTPError as e:
-        logger.error(f"HTTP Error occurred: {e}")
-        return {"error": str(e)}
+            
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP Status Error: {e.response.status_code} - {e.response.text}")
+        return {"error": f"Downstream API error: {e.response.status_code}", "details": e.response.text}
+    except httpx.RequestError as e:
+        logger.error(f"HTTP Request Error: {e}")
+        return {"error": "Could not connect to the downstream API."}
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
-        return {"error": str(e)}
+        return {"error": "An unexpected server error occurred."}
 
-# The entry point for the server, used by Render.
-app = FastAPI()
 
-# Include the MCP tool routes in the FastAPI application
-app.include_router(mcp.router)
+# --- LOCAL DEVELOPMENT ---
 
-# This block is for local development
+# This block is for running the server on your local machine
+# It is not used by Render's start command.
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("test_mcp:app", host="0.0.0.0", port=port, reload=True)
