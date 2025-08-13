@@ -1,7 +1,7 @@
 import os
 import httpx
 from typing import Dict, Any
-from fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP, Context
 from pydantic import BaseModel, Field
 from fastapi import FastAPI
 import uvicorn
